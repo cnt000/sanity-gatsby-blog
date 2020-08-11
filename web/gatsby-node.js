@@ -61,13 +61,11 @@ async function createCategoryPages (graphql, actions) {
       }
     }
   `)
-  // If there are any errors in the query, cancel the build and tell us
   if (result.errors) throw result.errors
 
-  // Let‘s gracefully handle if allSanityCatgogy is null
-  const categoryNodes = (result.data.allSanityCategory || {}).nodes || []
+  const postEdges = (result.data.allSanityPost || {}).edges || []
 
-  categoryNodes
+  postEdges
     // Loop through the category nodes, but don't return anything
     .forEach((node) => {
       // Desctructure the id and slug fields for each category
@@ -97,6 +95,7 @@ async function createAuthorPages (graphql, actions) {
     {
       allSanityAuthor {
         nodes {
+          id
           slug {
             current
           }
@@ -115,27 +114,22 @@ async function createAuthorPages (graphql, actions) {
   if (result.errors) throw result.errors
 
   // Let‘s gracefully handle if allSanityCatgogy is null
-  const authorNodes =
-    (result.data.allSanityAuthor || {}).nodes ||
-    []
-      // Loop through the category nodes, but don't return anything
-      .forEach((node) => {
-        // Desctructure the id and slug fields for each category
-        const {id, slug = {}} = node
-        // If there isn't a slug, we want to do nothing
-        if (!slug) return
+  const authorNodes = (result.data.allSanityAuthor || {}).nodes || []
 
-        // Make the URL with the current slug
-        const path = `/authors/${slug.current}`
+  // Loop through the category nodes, but don't return anything
+  authorNodes.forEach((node) => {
+    const {id, slug = {}} = node
 
-        // Create the page using the URL path and the template file, and pass down the id
-        // that we can use to query for the right category in the template file
-        createPage({
-          path,
-          component: require.resolve('./src/templates/author.js'),
-          context: {id}
-        })
-      })
+    if (!slug) return
+
+    const path = `/authors/${slug.current}`
+    console.log(path)
+    createPage({
+      path,
+      component: require.resolve('./src/templates/author.js'),
+      context: {id}
+    })
+  })
 }
 
 // /web/gatsby-node.js
@@ -167,14 +161,17 @@ exports.createResolvers = ({createResolvers}) => {
       posts: {
         type: ['SanityPost'],
         resolve (source, args, context, info) {
+          console.log(source._id)
           return context.nodeModel.runQuery({
             type: 'SanityPost',
             query: {
               filter: {
-                author {
+                authors: {
                   elemMatch: {
-                    _id: {
-                      eq: source._id
+                    author: {
+                      _id: {
+                        eq: source._id
+                      }
                     }
                   }
                 }
@@ -191,5 +188,5 @@ exports.createResolvers = ({createResolvers}) => {
 exports.createPages = async ({graphql, actions}) => {
   await createBlogPostPages(graphql, actions)
   await createCategoryPages(graphql, actions)
-  // await createAuthorPages(graphql, actions)
+  await createAuthorPages(graphql, actions)
 }
